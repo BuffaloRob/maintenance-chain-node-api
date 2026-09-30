@@ -1,0 +1,32 @@
+{
+  "name": "maintenance-chain-node-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Node/Express version of the Maintenance Chain API",
+  "type": "module",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "db:create": "node scripts/create-database.js",
+    "db:migrate": "knex migrate:latest",
+    "db:rollback": "knex migrate:rollback",
+    "pretest": "NODE_ENV=test npm run db:create --silent && NODE_ENV=test npm run db:migrate --silent",
+    "test": "NODE_ENV=test node --test --test-concurrency=1 'test/**/*.test.js'"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "knex": "^3.3.0",
+    "morgan": "^1.12.1",
+    "pg": "^8.23.0"
+  },
+  "devDependencies": {
+    "supertest": "^7.3.0"
+  }
+}
