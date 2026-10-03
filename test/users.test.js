@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import config from '../src/config.js';
 import db from '../src/db.js';
 import * as Item from '../src/models/item.js';
-import { api, resetDatabase, signUp } from './helpers.js';
+import { api, countRows, resetDatabase, signUp } from './helpers.js';
 
 beforeEach(resetDatabase);
 after(() => db.destroy());
@@ -43,6 +43,17 @@ describe('signing up', () => {
       assert.equal(res.status, 406, JSON.stringify(user));
       assert.deepEqual(res.body, { error: 'Sign Up has Failed' });
     }
+  });
+
+  test('simultaneous sign-ups with one email create one user', async () => {
+    const signUps = Array.from({ length: 5 }, () =>
+      api.post('/api/v1/signup').send({ user: { email: 'new@example.com', password: 'secret' } }),
+    );
+
+    const statuses = (await Promise.all(signUps)).map((res) => res.status);
+
+    assert.deepEqual(statuses.toSorted(), [201, 406, 406, 406, 406]);
+    assert.equal(await countRows('users'), 1);
   });
 
   test('a body without user params is a 400', async () => {

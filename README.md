@@ -55,16 +55,20 @@ Request bodies can nest attributes under the resource name (`{ item: { name } }`
 - category: `id`, `name`, `item_id`, `logs`, `item`
 - log: `id`, `notes`, `tools`, `cost`, `date_performed`, `date_due`, `category_id`, `category`
 
-Creating or updating a record returns it with a 200. A failed update returns its errors, also with a 200, e.g. `{ "category": ["must exist"] }`. Deleting returns a 204, and also deletes an item's categories and logs, or a category's logs. Unknown records are 404s, rendered as `{ "status": 404, "error": "Not Found" }`.
+Creating or updating a record returns it with a 200. A failed update returns its errors, also with a 200, e.g. `{ "category": ["must exist"] }`. Deleting returns a 204, and also deletes an item's categories and logs, or a category's logs. Unknown records are 404s, rendered as `{ "status": 404, "error": "Not Found" }`; malformed bodies and values too big for their column are 400s, rendered the same way.
 
 ## Using the Rails app's database
 
-Set `DATABASE_URL` to it and run `npm run db:migrate`, which sees the existing tables and leaves them alone. Existing passwords keep working, since both apps use bcrypt. Tokens the Rails app issued stay valid only if `JWT_SECRET` is the secret it signed them with (in `ApplicationController#encode_token`); otherwise people just log in again.
+Set `DATABASE_URL` to it and run `npm run db:migrate`. The first migration sees the existing tables and leaves them alone (and `npm run db:rollback` won't drop them). The second adds a unique index on lowercased emails, so it fails if two users there share an email, ignoring case, until one of them is changed.
+
+Existing passwords keep working, since both apps use bcrypt. Tokens the Rails app issued stay valid only if `JWT_SECRET` is the secret it signed them with (in `ApplicationController#encode_token`); otherwise people just log in again.
 
 ## Differences from the Rails API
 
 - Records are private to their user. The Rails app let any logged-in user read, change or delete anyone's items, categories and logs by id; here those are 404s. Likewise an item can't be handed to another user (`user_id` is ignored), and moving a category or log to an item or category that isn't yours returns a `must exist` error.
 - Missing records are 404s in the places where the Rails app raised 500s, such as listing the categories of an item that doesn't exist.
+- Values too big for their column, such as a `cost` over 2147483647, are 400s; the Rails app raised 500s.
+- Emails are unique even when two sign-ups with the same one arrive at once; the Rails app could create both.
 - `GET /items/:item_id/categories/:id` returns the category; the Rails app returned `null`.
 - `/past_due` and `/upcoming` skip logs without a due date; the Rails app failed on them.
 - Dates are read as `YYYY-MM-DD`, ignoring any time after them (as in an ISO timestamp); other formats are stored as empty. Rails guessed at more formats.

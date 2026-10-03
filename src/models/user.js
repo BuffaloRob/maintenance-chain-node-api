@@ -10,6 +10,9 @@ export const COLUMNS = ['id', 'email', 'password_digest', 'created_at', 'updated
 // at 72 characters.
 const MAX_PASSWORD_LENGTH = 72;
 
+// PostgreSQL's SQLSTATE for a duplicate key.
+const UNIQUE_VIOLATION = '23505';
+
 export async function find(id) {
   id = types.recordId(id);
   if (id === undefined) return;
@@ -43,7 +46,14 @@ export async function create({ email, password, password_confirmation }) {
   if (await emailTaken(email)) return;
 
   const password_digest = await bcrypt.hash(password, config.bcryptCost);
-  return insertRecord('users', { email, password_digest });
+  try {
+    return await insertRecord('users', { email, password_digest });
+  } catch (error) {
+    // A sign-up with the same email got in after the check above, and the
+    // unique index on lower(email) turned this one away.
+    if (error.code === UNIQUE_VIOLATION) return;
+    throw error;
+  }
 }
 
 function emailTaken(email) {

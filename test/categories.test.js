@@ -62,11 +62,12 @@ test('POST creates a category, or returns the one the item already has by that n
     item: { id: 1, name: 'Car' },
   });
 
-  const again = await api
-    .post(categoriesPath(car))
-    .set(rob.auth)
-    .send({ category: { name: 'Oil change' } });
-  assert.equal(again.body.id, 1);
+  // Including with an item_id, which only updates take.
+  for (const body of [{ category: { name: 'Oil change' } }, { name: 'Oil change', item_id: 999 }]) {
+    const again = await api.post(categoriesPath(car)).set(rob.auth).send(body);
+    assert.equal(again.status, 200, JSON.stringify(body));
+    assert.equal(again.body.id, 1);
+  }
   assert.equal(await countRows('categories'), 1);
 });
 

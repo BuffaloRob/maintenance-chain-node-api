@@ -43,6 +43,10 @@ export async function up(knex) {
 }
 
 export async function down(knex) {
+  // Nor are the Rails app's tables dropped. (Rails records its migrations in
+  // schema_migrations.)
+  if (await knex.schema.hasTable('schema_migrations')) return;
+
   for (const table of ['logs', 'categories', 'items', 'users']) {
     await knex.schema.dropTable(table);
   }

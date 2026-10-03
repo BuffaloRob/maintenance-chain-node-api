@@ -76,6 +76,14 @@ test('casts values the way Rails did', async () => {
   }
 });
 
+test('a value too big for its column is a 400', async () => {
+  const res = await api.post(logsPath()).set(rob.auth).send({ cost: '3000000000' });
+
+  assert.equal(res.status, 400);
+  assert.deepEqual(res.body, { status: 400, error: 'Bad Request' });
+  assert.equal(await countRows('logs'), 0);
+});
+
 test("GET lists the category's logs, latest due date first", async () => {
   await Log.create(oil, { date_due: '2020-04-01' });
   await Log.create(oil, { date_due: '2020-10-01' });
