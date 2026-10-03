@@ -4,7 +4,10 @@ import * as User from './models/user.js';
 
 // Like the Rails app's tokens: HS256, a { user_id } payload and no expiry.
 export function encodeToken(user) {
-  return jwt.sign({ user_id: user.id }, config.jwtSecret, { algorithm: 'HS256', noTimestamp: true });
+  return jwt.sign({ user_id: user.id }, config.jwtSecret, {
+    algorithm: 'HS256',
+    noTimestamp: true,
+  });
 }
 
 function decodeUserId(token) {

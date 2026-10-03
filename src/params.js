@@ -3,10 +3,13 @@ import { HttpError } from './errors.js';
 const isObject = (value) => typeof value === 'object' && value !== null && !Array.isArray(value);
 
 // The values strong parameters lets through: no nested objects or arrays.
-const isScalar = (value) => value === null || ['string', 'number', 'boolean'].includes(typeof value);
+const isScalar = (value) =>
+  value === null || ['string', 'number', 'boolean'].includes(typeof value);
 
 const pick = (object, keys) =>
-  Object.fromEntries(keys.filter((key) => Object.hasOwn(object, key)).map((key) => [key, object[key]]));
+  Object.fromEntries(
+    keys.filter((key) => Object.hasOwn(object, key)).map((key) => [key, object[key]]),
+  );
 
 // params.require(key).permit(*names): a 400 unless the body has a non-empty
 // object under `key`, then just the named attributes.
@@ -22,5 +25,6 @@ export function permit(req, key, names, { wrap } = {}) {
     params = pick(body, wrap);
   }
   if (!isObject(params) || Object.keys(params).length === 0) throw new HttpError(400);
-  return pick(params, names.filter((name) => isScalar(params[name])));
+  const scalars = names.filter((name) => isScalar(params[name]));
+  return pick(params, scalars);
 }

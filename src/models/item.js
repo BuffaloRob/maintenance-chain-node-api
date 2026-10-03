@@ -17,7 +17,8 @@ export async function find(userId, id) {
   return db('items').where({ id, user_id: userId }).first();
 }
 
-export const create = (user, attributes) => insertRecord('items', { ...attributes, user_id: user.id });
+export const create = (user, attributes) =>
+  insertRecord('items', { ...attributes, user_id: user.id });
 
 export const update = (item, attributes) => updateRecord('items', item, attributes);
 

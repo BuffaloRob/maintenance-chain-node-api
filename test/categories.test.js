@@ -88,7 +88,10 @@ test('GET /:id shows a category', async () => {
 test('PUT /:id renames a category', async () => {
   const oil = await Category.findOrCreate(car, { name: 'Oil change' });
 
-  const res = await api.put(`${categoriesPath(car)}/${oil.id}`).set(rob.auth).send({ name: 'Oil' });
+  const res = await api
+    .put(`${categoriesPath(car)}/${oil.id}`)
+    .set(rob.auth)
+    .send({ name: 'Oil' });
 
   assert.equal(res.status, 200);
   assert.equal(res.body.name, 'Oil');

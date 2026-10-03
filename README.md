@@ -4,7 +4,7 @@ A Node.js/Express version of [maintenance_chain_api](https://github.com/BuffaloR
 
 ## Running it locally
 
-You need Node 22 or later and PostgreSQL.
+You need Node 22 or later (`.nvmrc` pins 24, the current LTS) and PostgreSQL.
 
 ```sh
 npm install
@@ -16,7 +16,7 @@ npm run dev             # serves http://localhost:3001/api/v1
 
 To point the client at it, set `REACT_APP_API_URL=http://localhost:3001/api/v1` in the client's `.env`.
 
-`npm test` runs the tests against a separate `maintenance_chain_node_api_test` database, which it creates and migrates first.
+`npm test` runs the tests against a separate `maintenance_chain_node_api_test` database, which it creates and migrates first. `npm run lint` checks the code with ESLint, and `npm run format` formats it with Prettier (`npm run format:check` only checks). On every pull request and push to `master`, CI runs both checks and the tests, on Node 22 and 24.
 
 In production, run `npm start` with `NODE_ENV=production`, `DATABASE_URL` and `JWT_SECRET` set.
 

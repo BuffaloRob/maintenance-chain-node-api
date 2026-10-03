@@ -21,7 +21,10 @@ export function notFound(req, res, next) {
 export function errorHandler(error, req, res, next) {
   if (res.headersSent) return next(error);
   // HttpErrors, and body-parser's for malformed or oversized request bodies.
-  const status = Number.isInteger(error.status) && error.status >= 400 && error.status < 600 ? error.status : 500;
+  const status =
+    Number.isInteger(error.status) && error.status >= 400 && error.status < 600
+      ? error.status
+      : 500;
   if (status >= 500) console.error(error);
   res.status(status).json({ status, error: STATUS_CODES[status] });
 }

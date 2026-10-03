@@ -19,7 +19,9 @@ export async function find(id) {
 // find_by(email:) is an exact match, so logging in is case-sensitive even
 // though signing up rejects an email that differs only in case.
 export function findByEmail(email) {
-  return db('users').where({ email: types.string(email) }).first();
+  return db('users')
+    .where({ email: types.string(email) })
+    .first();
 }
 
 // has_secure_password's authenticate.
@@ -46,5 +48,7 @@ export async function create({ email, password, password_confirmation }) {
 
 function emailTaken(email) {
   const users = db('users').first('id');
-  return email === null ? users.whereNull('email') : users.whereRaw('lower(email) = lower(?)', [email]);
+  return email === null
+    ? users.whereNull('email')
+    : users.whereRaw('lower(email) = lower(?)', [email]);
 }

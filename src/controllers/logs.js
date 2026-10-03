@@ -39,7 +39,10 @@ export async function update(req, res) {
   const log = orNotFound(await Log.findInCategory(category, req.params.id));
   const attributes = logParams(req);
   // belongs_to :category, which here has to be one of the user's categories
-  if ('category_id' in attributes && !(await Category.find(req.currentUser.id, attributes.category_id))) {
+  if (
+    'category_id' in attributes &&
+    !(await Category.find(req.currentUser.id, attributes.category_id))
+  ) {
     return res.json({ category: ['must exist'] });
   }
   res.json(await serializeLog(await Log.update(log, attributes)));
@@ -65,7 +68,6 @@ export async function pastDue(req, res) {
 export async function upcoming(req, res) {
   const now = Date.now();
   const logs = await Log.latestPerCategory(req.currentUser.id);
-  res.json(
-    await serializeLogs(logs.filter((log) => dueTime(log) >= now && dueTime(log) <= now + 30 * DAY)),
-  );
+  const due = logs.filter((log) => dueTime(log) >= now && dueTime(log) <= now + 30 * DAY);
+  res.json(await serializeLogs(due));
 }

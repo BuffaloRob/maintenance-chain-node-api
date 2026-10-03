@@ -111,7 +111,11 @@ test('GET /:id shows a log with its category', async () => {
 });
 
 test('PUT /:id updates a log from the form values LogEdit sends', async () => {
-  const log = await Log.create(oil, { cost: 40, date_performed: '2020-01-01', date_due: '2020-04-01' });
+  const log = await Log.create(oil, {
+    cost: 40,
+    date_performed: '2020-01-01',
+    date_due: '2020-04-01',
+  });
 
   // LogEdit submits the log it loaded from GET /items, as edited.
   const res = await api.put(`${logsPath()}/${log.id}`).set(rob.auth).send({
