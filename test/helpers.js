@@ -1,10 +1,20 @@
+import { once } from 'node:events';
+import { after } from 'node:test';
 import request from 'supertest';
 import app from '../src/app.js';
 import { encodeToken } from '../src/auth.js';
 import db from '../src/db.js';
 import * as User from '../src/models/user.js';
 
-export const api = request(app);
+// One server per test file, listening on 127.0.0.1 itself. supertest's own
+// servers listen on every address but are sent requests at 127.0.0.1, where
+// on macOS another process (an editor, say) can hold the same port and answer
+// instead, failing tests at random.
+const server = app.listen(0, '127.0.0.1');
+await once(server, 'listening');
+after(() => server.close());
+
+export const api = request(server);
 
 export function resetDatabase() {
   return db.raw('TRUNCATE users, items, categories, logs RESTART IDENTITY CASCADE');
