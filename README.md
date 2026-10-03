@@ -1,6 +1,6 @@
 # Maintenance Chain API (Node)
 
-A Node.js/Express version of [maintenance_chain_api](https://github.com/BuffaloRob/maintenance_chain_api), the Rails API behind [maintenance-chain-client](https://github.com/BuffaloRob/maintenance-chain-client). It serves the same endpoints under `/api/v1`, accepts the same request bodies and returns the same JSON, but with tokens that expire; [Differences from the Rails API](#differences-from-the-rails-api) lists what a client of the Rails API has to change. It also uses the same PostgreSQL schema, so it can run against the Rails app's database.
+A Node.js/Express version of [maintenance_chain_api](https://github.com/BuffaloRob/maintenance_chain_api), the Rails API behind [maintenance-chain-client](https://github.com/BuffaloRob/maintenance-chain-client). It serves the same endpoints under `/api/v1`, accepts the same request bodies and returns the same JSON, but with standard HTTP status codes and tokens that expire; [Differences from the Rails API](#differences-from-the-rails-api) lists what a client of the Rails API has to change. It also uses the same PostgreSQL schema, so it can run against the Rails app's database.
 
 ## Running it locally
 
@@ -37,14 +37,13 @@ Signing up and logging in share a limit of 10 attempts per IP address every 15 m
 
 | Method | Path | |
 | --- | --- | --- |
-| `POST` | `/signup`, `/users` | Body `{ user: { email, password, password_confirmation } }` (confirmation optional). 201 `{ user, jwt }`, or 406 `{ error: "Sign Up has Failed" }` |
-| `POST` | `/login` | Body `{ user: { email, password } }`. 202 `{ user, jwt }`, or 401 `{ message: "Invalid email or password" }` |
-| `GET` | `/user` | 202 `{ user }` |
-| `GET` | `/logout` | 204 |
-| `GET` | `/users` | `{ message: "successful", status: 200 }` |
+| `POST` | `/signup`, `/users` | Body `{ user: { email, password, password_confirmation } }` (confirmation optional). 201 `{ user, jwt }`, or 422 `{ error: "Sign Up has Failed" }` |
+| `POST` | `/login` | Body `{ user: { email, password } }`. 200 `{ user, jwt }`, or 401 `{ message: "Invalid email or password" }` |
+| `GET` | `/user` | `{ user }` |
+| `POST` | `/logout` | 204. The server keeps no sessions; the client discards its token |
 | `GET`, `POST` | `/items` | Items take `name` |
 | `GET`, `PATCH`, `PUT`, `DELETE` | `/items/:id` | |
-| `GET`, `POST` | `/items/:item_id/categories` | Categories take `name` (and `item_id` on update). Posting a name the item already has returns that category |
+| `GET`, `POST` | `/items/:item_id/categories` | Categories take `name` (and `item_id` on update). Posting a name the item already has returns that category, with a 200 |
 | `GET`, `PATCH`, `PUT`, `DELETE` | `/items/:item_id/categories/:id` | |
 | `GET`, `POST` | `/items/:item_id/categories/:category_id/logs` | Logs take `notes`, `tools`, `cost`, `date_performed` and `date_due` (`YYYY-MM-DD`), and `category_id` on update |
 | `GET`, `PATCH`, `PUT`, `DELETE` | `/items/:item_id/categories/:category_id/logs/:id` | |
@@ -58,7 +57,7 @@ Request bodies can nest attributes under the resource name (`{ item: { name } }`
 - category: `id`, `name`, `item_id`, `logs`, `item`
 - log: `id`, `notes`, `tools`, `cost`, `date_performed`, `date_due`, `category_id`, `category`
 
-Creating or updating a record returns it with a 200. A failed update returns its errors, also with a 200, e.g. `{ "category": ["must exist"] }`. Deleting returns a 204, and also deletes an item's categories and logs, or a category's logs. Unknown records are 404s, rendered as `{ "status": 404, "error": "Not Found" }`; malformed bodies and values too big for their column are 400s, rendered the same way.
+Creating a record returns it with a 201, and updating one returns it with a 200. A failed update returns its errors with a 422, e.g. `{ "category": ["must exist"] }`. Deleting returns a 204, and also deletes an item's categories and logs, or a category's logs. Unknown records are 404s, rendered as `{ "status": 404, "error": "Not Found" }`; malformed bodies and values too big for their column are 400s, rendered the same way.
 
 ## Using the Rails app's database
 
@@ -70,6 +69,8 @@ Existing passwords keep working, since both apps use bcrypt, but everyone has to
 
 A client of the Rails API has to allow for these:
 
+- Status codes are the standard ones. Creating a record is a 201 (except posting a category name the item already has, a 200), a failed update is a 422 rather than a 200, a failed sign-up is a 422 rather than a 406, and logging in and `GET /user` are 200s rather than 202s.
+- Logging out is `POST /logout` rather than `GET`. `GET /users`, which only answered `{ message: "successful", status: 200 }`, is gone.
 - Tokens expire after 30 days, and the Rails app's tokens aren't accepted.
 - Signing up and logging in are rate limited.
 

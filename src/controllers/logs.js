@@ -27,7 +27,7 @@ export async function index(req, res) {
 
 export async function create(req, res) {
   const category = await findCategory(req);
-  res.json(await serializeLog(await Log.create(category, logParams(req))));
+  res.status(201).json(await serializeLog(await Log.create(category, logParams(req))));
 }
 
 export async function show(req, res) {
@@ -43,7 +43,7 @@ export async function update(req, res) {
     'category_id' in attributes &&
     !(await Category.find(req.currentUser.id, attributes.category_id))
   ) {
-    return res.json({ category: ['must exist'] });
+    return res.status(422).json({ category: ['must exist'] });
   }
   res.json(await serializeLog(await Log.update(log, attributes)));
 }

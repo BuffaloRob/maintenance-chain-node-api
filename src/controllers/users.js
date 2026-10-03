@@ -9,22 +9,16 @@ export async function create(req, res) {
     wrap: User.COLUMNS,
   });
   const user = await User.create(attributes);
-  if (!user) return res.status(406).json({ error: 'Sign Up has Failed' });
+  if (!user) return res.status(422).json({ error: 'Sign Up has Failed' });
   res.status(201).json({ user: await serializeUser(user), jwt: encodeToken(user) });
 }
 
 // GET /user
 export async function profile(req, res) {
-  res.status(202).json({ user: await serializeUser(req.currentUser) });
+  res.json({ user: await serializeUser(req.currentUser) });
 }
 
-// GET /logout. Nothing to do on the server; the client discards its token.
+// POST /logout. Nothing to do on the server; the client discards its token.
 export function logout(req, res) {
   res.status(204).end();
-}
-
-// GET /users. The Rails UsersController inherited this from
-// ApplicationController#index.
-export function index(req, res) {
-  res.json({ message: 'successful', status: 200 });
 }

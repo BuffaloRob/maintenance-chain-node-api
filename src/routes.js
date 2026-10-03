@@ -17,9 +17,8 @@ router.post('/login', limitAuthAttempts, auth.create);
 // Everything else needs a token.
 router.use(authorized);
 
-router.get('/users', users.index);
 router.get('/user', users.profile);
-router.get('/logout', users.logout);
+router.post('/logout', users.logout);
 
 router.route('/items').get(items.index).post(items.create);
 router

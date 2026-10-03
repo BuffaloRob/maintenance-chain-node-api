@@ -34,7 +34,7 @@ describe('signing up', () => {
     assert.equal(res.body.user.email, 'new@example.com');
   });
 
-  test('invalid sign-ups are 406s', async () => {
+  test('invalid sign-ups are 422s', async () => {
     await signUp('taken@example.com');
     const invalid = [
       { email: 'TAKEN@example.com', password: 'secret' },
@@ -45,7 +45,7 @@ describe('signing up', () => {
     ];
     for (const user of invalid) {
       const res = await api.post('/api/v1/signup').send({ user });
-      assert.equal(res.status, 406, JSON.stringify(user));
+      assert.equal(res.status, 422, JSON.stringify(user));
       assert.deepEqual(res.body, { error: 'Sign Up has Failed' });
     }
   });
@@ -57,7 +57,7 @@ describe('signing up', () => {
 
     const statuses = (await Promise.all(signUps)).map((res) => res.status);
 
-    assert.deepEqual(statuses.toSorted(), [201, 406, 406, 406, 406]);
+    assert.deepEqual(statuses.toSorted(), [201, 422, 422, 422, 422]);
     assert.equal(await countRows('users'), 1);
   });
 
@@ -78,7 +78,7 @@ describe('POST /login', () => {
       .post('/api/v1/login')
       .send({ user: { email: 'rob@example.com', password: 'secret' } });
 
-    assert.equal(res.status, 202);
+    assert.equal(res.status, 200);
     assert.deepEqual(res.body.user, {
       id: 1,
       email: 'rob@example.com',
@@ -115,7 +115,7 @@ describe('POST /login', () => {
       .post('/api/v1/login')
       .send({ user: { email: 'old@example.com', password: 'U*U' } });
 
-    assert.equal(res.status, 202);
+    assert.equal(res.status, 200);
   });
 
   test('accepts form-encoded params', async () => {
@@ -126,7 +126,7 @@ describe('POST /login', () => {
       .type('form')
       .send('user[email]=rob@example.com&user[password]=secret');
 
-    assert.equal(res.status, 202);
+    assert.equal(res.status, 200);
   });
 });
 
@@ -153,7 +153,7 @@ describe('authorization', () => {
 
     const res = await api.get('/api/v1/user').set(auth);
 
-    assert.equal(res.status, 202);
+    assert.equal(res.status, 200);
     assert.deepEqual(res.body, { user: { id: 1, email: 'rob@example.com', items: [] } });
   });
 
@@ -180,20 +180,11 @@ describe('authorization', () => {
     }
   });
 
-  test('GET /logout is a 204', async () => {
+  test('POST /logout is a 204', async () => {
     const { auth } = await signUp();
 
-    const res = await api.get('/api/v1/logout').set(auth);
+    const res = await api.post('/api/v1/logout').set(auth);
 
     assert.equal(res.status, 204);
-  });
-
-  test('GET /users answers like ApplicationController#index', async () => {
-    const { auth } = await signUp();
-
-    const res = await api.get('/api/v1/users').set(auth);
-
-    assert.equal(res.status, 200);
-    assert.deepEqual(res.body, { message: 'successful', status: 200 });
   });
 });

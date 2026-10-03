@@ -16,7 +16,7 @@ beforeEach(async () => {
   rob = await signUp('rob@example.com');
   other = await signUp('other@example.com');
   car = await Item.create(rob.user, { name: 'Car' });
-  oil = await Category.findOrCreate(car, { name: 'Oil change' });
+  oil = await Category.create(car, { name: 'Oil change' });
 });
 after(() => db.destroy());
 
@@ -32,7 +32,7 @@ test('POST creates a log from the form values LogCreate sends', async () => {
     tools: 'Wrench',
   });
 
-  assert.equal(res.status, 200);
+  assert.equal(res.status, 201);
   assert.deepEqual(res.body, {
     id: 1,
     notes: 'Synthetic',
@@ -71,7 +71,7 @@ test('casts values the way Rails did', async () => {
       .post(logsPath())
       .set(rob.auth)
       .send({ log: { [attribute]: sent } });
-    assert.equal(res.status, 200);
+    assert.equal(res.status, 201);
     assert.equal(res.body[attribute], stored, `${attribute}: ${JSON.stringify(sent)}`);
   }
 });
@@ -88,7 +88,7 @@ test("GET lists the category's logs, latest due date first", async () => {
   await Log.create(oil, { date_due: '2020-04-01' });
   await Log.create(oil, { date_due: '2020-10-01' });
   await Log.create(oil, { date_due: '2020-07-01' });
-  await Log.create(await Category.findOrCreate(car, { name: 'Tires' }), { date_due: '2021-01-01' });
+  await Log.create(await Category.create(car, { name: 'Tires' }), { date_due: '2021-01-01' });
 
   const res = await api.get(logsPath()).set(rob.auth);
 
@@ -150,15 +150,15 @@ test('PUT /:id updates a log from the form values LogEdit sends', async () => {
 
 test("PUT /:id moves a log only to another of the user's categories", async () => {
   const log = await Log.create(oil, { date_due: '2020-04-01' });
-  const tires = await Category.findOrCreate(car, { name: 'Tires' });
+  const tires = await Category.create(car, { name: 'Tires' });
   const theirItem = await Item.create(other.user, { name: 'Not mine' });
-  const theirs = await Category.findOrCreate(theirItem, { name: 'Theirs' });
+  const theirs = await Category.create(theirItem, { name: 'Theirs' });
 
   const refused = await api
     .put(`${logsPath()}/${log.id}`)
     .set(rob.auth)
     .send({ category_id: theirs.id });
-  assert.equal(refused.status, 200);
+  assert.equal(refused.status, 422);
   assert.deepEqual(refused.body, { category: ['must exist'] });
 
   const moved = await api
@@ -180,7 +180,7 @@ test('DELETE /:id deletes a log', async () => {
 
 test("another user's categories and logs are 404s", async () => {
   const theirItem = await Item.create(other.user, { name: 'Not mine' });
-  const theirCategory = await Category.findOrCreate(theirItem, { name: 'Theirs' });
+  const theirCategory = await Category.create(theirItem, { name: 'Theirs' });
   const theirs = await Log.create(theirCategory, { notes: 'Theirs' });
   const requests = [
     () => api.get(logsPath(theirCategory)),

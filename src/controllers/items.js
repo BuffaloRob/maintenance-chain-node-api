@@ -17,7 +17,7 @@ export async function index(req, res) {
 
 export async function create(req, res) {
   const item = await Item.create(req.currentUser, itemParams(req));
-  res.json(await serializeItem(item, req.currentUser));
+  res.status(201).json(await serializeItem(item, req.currentUser));
 }
 
 export async function show(req, res) {

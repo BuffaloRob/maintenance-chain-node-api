@@ -18,7 +18,7 @@ after(() => db.destroy());
 
 // A category with a log due each of the given numbers of days from today.
 async function categoryWithLogs(item, name, ...dueInDays) {
-  const category = await Category.findOrCreate(item, { name });
+  const category = await Category.create(item, { name });
   for (const days of dueInDays) await Log.create(category, { date_due: daysFromToday(days) });
   return category;
 }

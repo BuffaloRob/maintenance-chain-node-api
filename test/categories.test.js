@@ -21,8 +21,8 @@ after(() => db.destroy());
 const categoriesPath = (item) => `/api/v1/items/${item.id}/categories`;
 
 test("GET lists the item's categories with their logs and item", async () => {
-  const oil = await Category.findOrCreate(car, { name: 'Oil change' });
-  await Category.findOrCreate(car, { name: 'Tires' });
+  const oil = await Category.create(car, { name: 'Oil change' });
+  await Category.create(car, { name: 'Tires' });
   await Log.create(oil, { cost: 40, date_performed: '2020-01-01', date_due: '2020-04-01' });
 
   const res = await api.get(categoriesPath(car)).set(rob.auth);
@@ -53,7 +53,7 @@ test("GET lists the item's categories with their logs and item", async () => {
 
 test('POST creates a category, or returns the one the item already has by that name', async () => {
   const created = await api.post(categoriesPath(car)).set(rob.auth).send({ name: 'Oil change' });
-  assert.equal(created.status, 200);
+  assert.equal(created.status, 201);
   assert.deepEqual(created.body, {
     id: 1,
     name: 'Oil change',
@@ -72,7 +72,7 @@ test('POST creates a category, or returns the one the item already has by that n
 });
 
 test('GET /:id shows a category', async () => {
-  const oil = await Category.findOrCreate(car, { name: 'Oil change' });
+  const oil = await Category.create(car, { name: 'Oil change' });
 
   const res = await api.get(`${categoriesPath(car)}/${oil.id}`).set(rob.auth);
 
@@ -87,7 +87,7 @@ test('GET /:id shows a category', async () => {
 });
 
 test('PUT /:id renames a category', async () => {
-  const oil = await Category.findOrCreate(car, { name: 'Oil change' });
+  const oil = await Category.create(car, { name: 'Oil change' });
 
   const res = await api
     .put(`${categoriesPath(car)}/${oil.id}`)
@@ -99,7 +99,7 @@ test('PUT /:id renames a category', async () => {
 });
 
 test("PUT /:id moves a category only to another of the user's items", async () => {
-  const oil = await Category.findOrCreate(car, { name: 'Oil change' });
+  const oil = await Category.create(car, { name: 'Oil change' });
   const truck = await Item.create(rob.user, { name: 'Truck' });
   const theirs = await Item.create(other.user, { name: 'Not mine' });
 
@@ -107,7 +107,7 @@ test("PUT /:id moves a category only to another of the user's items", async () =
     .put(`${categoriesPath(car)}/${oil.id}`)
     .set(rob.auth)
     .send({ item_id: theirs.id });
-  assert.equal(refused.status, 200);
+  assert.equal(refused.status, 422);
   assert.deepEqual(refused.body, { item: ['must exist'] });
 
   const moved = await api
@@ -119,7 +119,7 @@ test("PUT /:id moves a category only to another of the user's items", async () =
 });
 
 test('DELETE /:id deletes a category and its logs', async () => {
-  const oil = await Category.findOrCreate(car, { name: 'Oil change' });
+  const oil = await Category.create(car, { name: 'Oil change' });
   await Log.create(oil, { date_due: '2020-04-01' });
 
   const res = await api.delete(`${categoriesPath(car)}/${oil.id}`).set(rob.auth);
@@ -131,7 +131,7 @@ test('DELETE /:id deletes a category and its logs', async () => {
 
 test("another user's items and categories are 404s", async () => {
   const theirItem = await Item.create(other.user, { name: 'Not mine' });
-  const theirs = await Category.findOrCreate(theirItem, { name: 'Theirs' });
+  const theirs = await Category.create(theirItem, { name: 'Theirs' });
   const requests = [
     () => api.get(categoriesPath(theirItem)),
     () => api.post(categoriesPath(theirItem)).send({ name: 'Mine now' }),

@@ -29,15 +29,12 @@ export async function findInItem(item, id) {
   return db('categories').where({ id, item_id: item.id }).first();
 }
 
-// item.categories.find_or_create_by(attributes)
-export async function findOrCreate(item, attributes) {
-  const existing = await db('categories')
-    .where({ item_id: item.id })
-    .where(attributes)
-    .orderBy('id')
-    .first();
-  return existing ?? insertRecord('categories', { ...attributes, item_id: item.id });
-}
+// item.categories.find_by(attributes)
+export const findBy = (item, attributes) =>
+  db('categories').where({ item_id: item.id }).where(attributes).orderBy('id').first();
+
+export const create = (item, attributes) =>
+  insertRecord('categories', { ...attributes, item_id: item.id });
 
 export const update = (category, attributes) => updateRecord('categories', category, attributes);
 

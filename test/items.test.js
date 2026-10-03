@@ -18,7 +18,7 @@ after(() => db.destroy());
 
 test("GET /items lists the user's items with their user, categories and logs", async () => {
   const car = await Item.create(rob.user, { name: 'Car' });
-  const oil = await Category.findOrCreate(car, { name: 'Oil change' });
+  const oil = await Category.create(car, { name: 'Oil change' });
   await Log.create(oil, {
     notes: 'Synthetic',
     tools: 'Wrench',
@@ -68,7 +68,7 @@ test("GET /items lists the user's items with their user, categories and logs", a
 test('POST /items creates an item from the bare { name } the client sends', async () => {
   const res = await api.post('/api/v1/items').set(rob.auth).send({ name: 'Car' });
 
-  assert.equal(res.status, 200);
+  assert.equal(res.status, 201);
   assert.deepEqual(res.body, {
     id: 1,
     name: 'Car',
@@ -84,7 +84,7 @@ test('POST /items takes { item: { ... } } too, and ignores user_id', async () =>
     .set(rob.auth)
     .send({ item: { name: 'Car', user_id: other.user.id } });
 
-  assert.equal(res.status, 200);
+  assert.equal(res.status, 201);
   assert.equal(res.body.user.id, rob.user.id);
   assert.equal((await db('items').first()).user_id, rob.user.id);
 });
@@ -128,7 +128,7 @@ test('PUT and PATCH /items/:id rename an item from the form values ItemEdit send
 
 test('DELETE /items/:id deletes the item with its categories and logs', async () => {
   const car = await Item.create(rob.user, { name: 'Car' });
-  const oil = await Category.findOrCreate(car, { name: 'Oil change' });
+  const oil = await Category.create(car, { name: 'Oil change' });
   await Log.create(oil, { date_due: '2020-04-01' });
 
   const res = await api.delete(`/api/v1/items/${car.id}`).set(rob.auth);
