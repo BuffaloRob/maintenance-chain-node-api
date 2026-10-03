@@ -14,6 +14,14 @@ const defaultCorsOrigins = [
   'http://maintenancecha.in',
 ];
 
+// Express's "trust proxy" setting: how many proxies sit in front of the app,
+// or their addresses, so that req.ip, which rate limiting counts by, is the
+// client's address rather than the proxy's.
+function parseTrustProxy(value) {
+  if (!value) return false;
+  return /^\d+$/.test(value) ? Number(value) : value;
+}
+
 export default {
   env,
   port: Number(process.env.PORT || 3001),
@@ -26,6 +34,7 @@ export default {
   corsOrigins: process.env.CORS_ORIGINS
     ? process.env.CORS_ORIGINS.split(',').map((origin) => origin.trim())
     : defaultCorsOrigins,
+  trustProxy: parseTrustProxy(process.env.TRUST_PROXY),
   // Like has_secure_password, which uses bcrypt's minimum cost in tests.
   bcryptCost: env === 'test' ? 4 : 12,
 };

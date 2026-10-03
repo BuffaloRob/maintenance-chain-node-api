@@ -4,20 +4,25 @@ import jwt from 'jsonwebtoken';
 import config from '../src/config.js';
 import db from '../src/db.js';
 import * as Item from '../src/models/item.js';
-import { api, countRows, resetDatabase, signUp } from './helpers.js';
+import { api, countRows, reset, signUp } from './helpers.js';
 
-beforeEach(resetDatabase);
+beforeEach(reset);
 after(() => db.destroy());
 
+// A day in seconds, the unit of a token's iat and exp.
+const DAY = 24 * 60 * 60;
+
 describe('signing up', () => {
-  test('POST /signup creates a user and returns it with a token', async () => {
+  test('POST /signup creates a user and returns it with a token for 30 days', async () => {
     const res = await api.post('/api/v1/signup').send({
       user: { email: 'new@example.com', password: 'secret', password_confirmation: 'secret' },
     });
 
     assert.equal(res.status, 201);
     assert.deepEqual(res.body.user, { id: 1, email: 'new@example.com', items: [] });
-    assert.deepEqual(jwt.verify(res.body.jwt, config.jwtSecret), { user_id: 1 });
+    const { user_id, iat, exp } = jwt.verify(res.body.jwt, config.jwtSecret);
+    assert.equal(user_id, 1);
+    assert.equal(exp - iat, 30 * DAY);
   });
 
   test('POST /users does the same', async () => {
@@ -79,7 +84,7 @@ describe('POST /login', () => {
       email: 'rob@example.com',
       items: [{ id: 1, name: 'Car' }],
     });
-    assert.deepEqual(jwt.verify(res.body.jwt, config.jwtSecret), { user_id: 1 });
+    assert.equal(jwt.verify(res.body.jwt, config.jwtSecret).user_id, 1);
   });
 
   test('rejects a wrong password, an unknown email, or differently capitalized email', async () => {
@@ -125,6 +130,23 @@ describe('POST /login', () => {
   });
 });
 
+test('sign-ups and logins together are limited to 10 per client every 15 minutes', async () => {
+  for (let attempt = 1; attempt <= 10; attempt++) {
+    const res = await api
+      .post('/api/v1/login')
+      .send({ user: { email: 'rob@example.com', password: 'guess' } });
+    assert.equal(res.status, 401, `attempt ${attempt}`);
+  }
+
+  const res = await api
+    .post('/api/v1/signup')
+    .send({ user: { email: 'new@example.com', password: 'secret' } });
+
+  assert.equal(res.status, 429);
+  assert.deepEqual(res.body, { status: 429, error: 'Too Many Requests' });
+  assert.ok(Number(res.headers['retry-after']) > 0);
+});
+
 describe('authorization', () => {
   test('GET /user returns the current user', async () => {
     const { auth } = await signUp('rob@example.com');
@@ -137,16 +159,23 @@ describe('authorization', () => {
 
   test('requests without a valid token get a 401 with no body', async () => {
     const { user } = await signUp();
-    const headers = [
-      {},
-      { Authorization: 'Bearer' },
-      { Authorization: 'Bearer not-a-token' },
-      { Authorization: `Bearer ${jwt.sign({ user_id: user.id }, 'another secret')}` },
-      { Authorization: `Bearer ${jwt.sign({ user_id: 999 }, config.jwtSecret)}` },
-    ];
-    for (const header of headers) {
-      const res = await api.get('/api/v1/user').set(header);
-      assert.equal(res.status, 401, JSON.stringify(header));
+    const now = Math.floor(Date.now() / 1000);
+    const sign = (payload, options) => jwt.sign(payload, config.jwtSecret, options);
+    const authorizations = {
+      'no header': undefined,
+      'no token': 'Bearer',
+      'not a token': 'Bearer not-a-token',
+      'another secret': `Bearer ${jwt.sign({ user_id: user.id }, 'another secret')}`,
+      'a missing user': `Bearer ${sign({ user_id: 999 })}`,
+      expired: `Bearer ${sign({ user_id: user.id, exp: now - 1 })}`,
+      'issued over 30 days ago': `Bearer ${sign({ user_id: user.id, iat: now - 31 * DAY, exp: now + DAY })}`,
+      "no expiry, like the Rails app's": `Bearer ${sign({ user_id: user.id }, { noTimestamp: true })}`,
+    };
+    for (const [description, authorization] of Object.entries(authorizations)) {
+      const req = api.get('/api/v1/user');
+      if (authorization) req.set('Authorization', authorization);
+      const res = await req;
+      assert.equal(res.status, 401, description);
       assert.equal(res.text, '');
     }
   });

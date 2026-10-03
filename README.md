@@ -1,6 +1,6 @@
 # Maintenance Chain API (Node)
 
-A Node.js/Express version of [maintenance_chain_api](https://github.com/BuffaloRob/maintenance_chain_api), the Rails API behind [maintenance-chain-client](https://github.com/BuffaloRob/maintenance-chain-client). It serves the same endpoints under `/api/v1`, accepts the same request bodies and returns the same JSON, so the client works with it unchanged. It also uses the same PostgreSQL schema, so it can run against the Rails app's database.
+A Node.js/Express version of [maintenance_chain_api](https://github.com/BuffaloRob/maintenance_chain_api), the Rails API behind [maintenance-chain-client](https://github.com/BuffaloRob/maintenance-chain-client). It serves the same endpoints under `/api/v1`, accepts the same request bodies and returns the same JSON, but with tokens that expire; [Differences from the Rails API](#differences-from-the-rails-api) lists what a client of the Rails API has to change. It also uses the same PostgreSQL schema, so it can run against the Rails app's database.
 
 ## Running it locally
 
@@ -8,7 +8,7 @@ You need Node 22 or later (`.nvmrc` pins 24, the current LTS) and PostgreSQL.
 
 ```sh
 npm install
-cp .env.example .env    # then set JWT_SECRET, e.g. to the output of `openssl rand -hex 32`
+cp .env.example .env    # then set JWT_SECRET to the output of `openssl rand -hex 32`
 npm run db:create
 npm run db:migrate
 npm run dev             # serves http://localhost:3001/api/v1
@@ -25,12 +25,15 @@ In production, run `npm start` with `NODE_ENV=production`, `DATABASE_URL` and `J
 | `PORT` | `3001` | |
 | `DATABASE_URL` | `postgres://localhost/maintenance_chain_node_api_development` | |
 | `TEST_DATABASE_URL` | `postgres://localhost/maintenance_chain_node_api_test` | Used by `npm test` |
-| `JWT_SECRET` | | Required. Signs login tokens. |
+| `JWT_SECRET` | | Required, at least 32 characters. Signs login tokens. |
 | `CORS_ORIGINS` | The Rails app's list | Comma-separated browser origins allowed to call the API |
+| `TRUST_PROXY` | | Behind a proxy or load balancer, how many there are (e.g. `1`) or their addresses, so rate limiting sees each client's IP |
 
 ## Endpoints
 
-All paths are under `/api/v1`. Apart from signing up and logging in, requests need an `Authorization: Bearer <jwt>` header; without a valid one the response is a 401 with no body.
+All paths are under `/api/v1`. Apart from signing up and logging in, requests need an `Authorization: Bearer <jwt>` header; without a valid one the response is a 401 with no body. Tokens expire 30 days after they're issued, and then the client has to log in again.
+
+Signing up and logging in share a limit of 10 attempts per IP address every 15 minutes. Past it they're 429s, with a `Retry-After` header giving the seconds to wait.
 
 | Method | Path | |
 | --- | --- | --- |
@@ -61,9 +64,16 @@ Creating or updating a record returns it with a 200. A failed update returns its
 
 Set `DATABASE_URL` to it and run `npm run db:migrate`. The first migration sees the existing tables and leaves them alone (and `npm run db:rollback` won't drop them). The second adds a unique index on lowercased emails, so it fails if two users there share an email, ignoring case, until one of them is changed.
 
-Existing passwords keep working, since both apps use bcrypt. Tokens the Rails app issued stay valid only if `JWT_SECRET` is the secret it signed them with (in `ApplicationController#encode_token`); otherwise people just log in again.
+Existing passwords keep working, since both apps use bcrypt, but everyone has to log in again. Don't set `JWT_SECRET` to the Rails app's secret to keep its tokens working: that secret is in the Rails app's public repository, so anyone could use it to sign a token for any user. (The Rails app's tokens never expired, so they're turned away regardless.)
 
 ## Differences from the Rails API
+
+A client of the Rails API has to allow for these:
+
+- Tokens expire after 30 days, and the Rails app's tokens aren't accepted.
+- Signing up and logging in are rate limited.
+
+The rest are fixes:
 
 - Records are private to their user. The Rails app let any logged-in user read, change or delete anyone's items, categories and logs by id; here those are 404s. Likewise an item can't be handed to another user (`user_id` is ignored), and moving a category or log to an item or category that isn't yours returns a `must exist` error.
 - Missing records are 404s in the places where the Rails app raised 500s, such as listing the categories of an item that doesn't exist.

@@ -5,13 +5,14 @@ import * as categories from './controllers/categories.js';
 import * as items from './controllers/items.js';
 import * as logs from './controllers/logs.js';
 import * as users from './controllers/users.js';
+import { limitAuthAttempts } from './rate-limit.js';
 
 // The Rails app's config/routes.rb, mounted at /api/v1.
 const router = Router();
 
-router.post('/signup', users.create);
-router.post('/users', users.create);
-router.post('/login', auth.create);
+router.post('/signup', limitAuthAttempts, users.create);
+router.post('/users', limitAuthAttempts, users.create);
+router.post('/login', limitAuthAttempts, auth.create);
 
 // Everything else needs a token.
 router.use(authorized);

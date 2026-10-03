@@ -4,7 +4,7 @@ import db from '../src/db.js';
 import * as Category from '../src/models/category.js';
 import * as Item from '../src/models/item.js';
 import * as Log from '../src/models/log.js';
-import { api, countRows, resetDatabase, signUp } from './helpers.js';
+import { api, countRows, reset, signUp } from './helpers.js';
 
 let rob;
 let other;
@@ -12,7 +12,7 @@ let car;
 let oil;
 
 beforeEach(async () => {
-  await resetDatabase();
+  await reset();
   rob = await signUp('rob@example.com');
   other = await signUp('other@example.com');
   car = await Item.create(rob.user, { name: 'Car' });

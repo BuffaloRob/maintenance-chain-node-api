@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { join } from 'node:path';
 import { after, beforeEach, test } from 'node:test';
 import db from '../src/db.js';
-import { api, resetDatabase, signUp } from './helpers.js';
+import { api, reset, signUp } from './helpers.js';
 
-beforeEach(resetDatabase);
+beforeEach(reset);
 after(() => db.destroy());
 
 test('unknown paths are JSON 404s', async () => {
@@ -52,4 +54,15 @@ test('CORS turns other origins away', async () => {
     .set('Access-Control-Request-Method', 'GET');
 
   assert.equal(res.headers['access-control-allow-origin'], undefined);
+});
+
+test('the server refuses to start with a short JWT_SECRET', () => {
+  const server = spawnSync(process.execPath, [join(import.meta.dirname, '../src/server.js')], {
+    env: { ...process.env, JWT_SECRET: 'does this work', PORT: '0' },
+    encoding: 'utf8',
+    timeout: 10_000,
+  });
+
+  assert.equal(server.status, 1);
+  assert.match(server.stderr, /JWT_SECRET must be at least 32 characters/);
 });

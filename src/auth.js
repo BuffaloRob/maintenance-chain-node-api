@@ -2,17 +2,23 @@ import jwt from 'jsonwebtoken';
 import config from './config.js';
 import * as User from './models/user.js';
 
-// Like the Rails app's tokens: HS256, a { user_id } payload and no expiry.
+// How long a login lasts before the client has to log in again.
+const TOKEN_LIFETIME = '30d';
+
+// HS256 and a { user_id } payload, like the Rails app's tokens, but these expire.
 export function encodeToken(user) {
   return jwt.sign({ user_id: user.id }, config.jwtSecret, {
     algorithm: 'HS256',
-    noTimestamp: true,
+    expiresIn: TOKEN_LIFETIME,
   });
 }
 
 function decodeUserId(token) {
   try {
-    return jwt.verify(token, config.jwtSecret, { algorithms: ['HS256'] }).user_id;
+    // maxAge also turns away tokens without an issue time (like the Rails
+    // app's), so no token lasts forever.
+    const options = { algorithms: ['HS256'], maxAge: TOKEN_LIFETIME };
+    return jwt.verify(token, config.jwtSecret, options).user_id;
   } catch {
     return undefined;
   }
