@@ -16,7 +16,7 @@ npm run dev             # serves http://localhost:3001/api/v1
 
 To point the client at it, set `REACT_APP_API_URL=http://localhost:3001/api/v1` in the client's `.env`.
 
-Without `SMTP_URL`, emails such as the verification email sent on signing up are printed to the console instead, link included. Signing in with Google needs `GOOGLE_CLIENT_ID` (see [Signing in with Google](#signing-in-with-google)).
+Without `SMTP_URL`, emails such as the verification email sent on signing up, or a password reset email, are printed to the console instead, link included. Signing in with Google needs `GOOGLE_CLIENT_ID` (see [Signing in with Google](#signing-in-with-google)).
 
 `npm test` runs the tests against a separate `maintenance_chain_node_api_test` database, which it creates and migrates first. `npm run lint` checks the code with ESLint, and `npm run format` formats it with Prettier (`npm run format:check` only checks). On every pull request and push to `master`, CI runs both checks and the tests, on Node 22 and 24.
 
@@ -27,7 +27,7 @@ In production, run `npm start` with `NODE_ENV=production`, `DATABASE_URL`, `JWT_
 | `PORT` | `3001` | |
 | `DATABASE_URL` | `postgres://localhost/maintenance_chain_node_api_development` | |
 | `TEST_DATABASE_URL` | `postgres://localhost/maintenance_chain_node_api_test` | Used by `npm test` |
-| `JWT_SECRET` | | Required, at least 32 characters. Signs login tokens and the links in verification emails. |
+| `JWT_SECRET` | | Required, at least 32 characters. Signs login tokens and the links in emails. |
 | `SMTP_URL` | | Required in production. The SMTP server emails go through, e.g. `smtps://user:password@smtp.example.com`. Without it, emails are printed to the console |
 | `MAIL_FROM` | `Maintenance Chain <no-reply@localhost>` | Required in production. The emails' sender |
 | `CLIENT_URL` | `http://localhost:3005` | Required in production. The client's address, which links in emails point to |
@@ -37,9 +37,9 @@ In production, run `npm start` with `NODE_ENV=production`, `DATABASE_URL`, `JWT_
 
 ## Endpoints
 
-All paths are under `/api/v1`. Apart from signing up, logging in and verifying an email address, requests need an `Authorization: Bearer <jwt>` header; without a valid one the response is a 401 with no body. Users who haven't verified their email address get a 403 `{ message: "Please verify your email address" }` from everything but `GET /user`, `POST /logout` and `POST /resend_verification_email` (see [Verifying email addresses](#verifying-email-addresses)). Tokens expire 30 days after they're issued, and then the client has to log in again. They're also revoked when a Google account is linked to a user whose email address wasn't verified (see [Signing in with Google](#signing-in-with-google)).
+All paths are under `/api/v1`. Apart from signing up, logging in, verifying an email address and resetting a password, requests need an `Authorization: Bearer <jwt>` header; without a valid one the response is a 401 with no body. Users who haven't verified their email address get a 403 `{ message: "Please verify your email address" }` from everything but `GET /user`, `POST /logout` and `POST /resend_verification_email` (see [Verifying email addresses](#verifying-email-addresses)). Tokens expire 30 days after they're issued, and then the client has to log in again. They're also revoked when the user resets their password, or a Google account is linked to a user whose email address wasn't verified (see [Signing in with Google](#signing-in-with-google)).
 
-Signing up and logging in, with a password or Google, share a limit of 10 attempts per IP address every 15 minutes. Asking for another verification email is limited to 5 times per user an hour. Past these limits requests are 429s, with a `Retry-After` header giving the seconds to wait.
+Signing up, logging in (with a password or Google), asking for a password reset and resetting a password share a limit of 10 attempts per IP address every 15 minutes. Asking for another verification email is limited to 5 times per user an hour, and for a password reset email to 5 times per address an hour. Past these limits requests are 429s, with a `Retry-After` header giving the seconds to wait.
 
 | Method | Path | |
 | --- | --- | --- |
@@ -48,6 +48,8 @@ Signing up and logging in, with a password or Google, share a limit of 10 attemp
 | `POST` | `/auth/google` | Body `{ credential }`: the ID token from Google's sign-in button. 200 `{ user, jwt }`, or 201 for a new user, or 401 `{ message: "Couldn't sign in with Google" }` |
 | `POST` | `/verify_email` | Body `{ token }`, from the link in a verification email. 204, or 422 `{ message: "This link is invalid or has expired" }` |
 | `POST` | `/resend_verification_email` | 204. Emails the user another link, unless their address is already verified |
+| `POST` | `/forgot_password` | Body `{ email }`. 204, and emails the account with that address, if there is one, a link to reset its password |
+| `POST` | `/reset_password` | Body `{ token, password, password_confirmation }` (confirmation optional), with the token from the link. 200 `{ user, jwt }`, or 422 `{ message }`: `"This link is invalid or has expired"`, or what's wrong with the password |
 | `GET` | `/user` | `{ user }` |
 | `POST` | `/logout` | 204. The server keeps no sessions; the client discards its token |
 | `GET`, `POST` | `/items` | Items take `name` |
@@ -76,6 +78,12 @@ Until they verify it, users can log in, see their profile, log out and ask for a
 
 Users who signed up before verification existed were let off: a migration marked them all verified. Users who sign up with Google are verified from the start.
 
+## Resetting passwords
+
+`POST /forgot_password` emails the account with the given address, whichever way it's capitalized, a link to the client's `/reset-password?token=…` page, which sends the token and the new password to `POST /reset_password`. It answers the same whether or not there's an account, and without waiting for the email to go, so it doesn't tell anyone which addresses have one.
+
+Links work for an hour, and once: the token names the password it was sent for, so it stops working when that changes. Resetting the password logs the user in, revokes their other tokens and verifies their email address, since the link went to it. Users who signed up with Google can use it to give themselves a password.
+
 ## Signing in with Google
 
 The client shows Google's sign-in button, which gives it an ID token for the user's Google account, and sends that to `POST /auth/google`. The API checks that Google signed the token for this app's client ID, and that Google has verified the account's email address. Then it logs in:
@@ -84,7 +92,7 @@ The client shows Google's sign-in button, which gives it an ID token for the use
 - otherwise the user with that address, linking the Google account to them;
 - otherwise a new user with that address, already verified and with no password. Logging in with a password never works for them.
 
-When the user with that address hadn't verified it, linking also deletes their password and revokes their tokens. Anyone could have signed up with that address, so the password may not be its owner's, and Google has just shown that this person is the owner. The user keeps their data, and logs in with Google from then on.
+When the user with that address hadn't verified it, linking also deletes their password and revokes their tokens. Anyone could have signed up with that address, so the password may not be its owner's, and Google has just shown that this person is the owner. The user keeps their data, and logs in with Google, or can give themselves a new password with a [password reset](#resetting-passwords).
 
 To set it up, in the [Google Cloud console](https://console.cloud.google.com/auth/clients):
 
@@ -109,7 +117,7 @@ A client of the Rails API has to allow for these:
 - Signing up and logging in are rate limited.
 - Users who sign up have to verify their email address before they can use anything but `GET /user`, `POST /logout` and `POST /resend_verification_email`; until then the rest are 403s. Users' `email_verified` says whether they have, and signing up emails them a link.
 
-Signing in with Google is new, and a client of the Rails API can ignore it.
+Signing in with Google and resetting passwords are new, and a client of the Rails API can ignore them.
 
 The rest are fixes:
 

@@ -42,6 +42,25 @@ export async function authenticate(user, password) {
   return bcrypt.compare(password == null ? '' : String(password), user.password_digest);
 }
 
+// Sets a new password from a reset link, which also shows the address is the
+// user's, and revokes the user's tokens, which may be whoever knew the old
+// password's. Returns the updated user, or undefined if their password
+// changed since `user` was read (as when the same link was used at once
+// twice).
+export async function resetPassword(user, password) {
+  const password_digest = await bcrypt.hash(password, config.bcryptCost);
+  const [updated] = await db('users')
+    .where({ id: user.id, password_digest: user.password_digest })
+    .update({
+      password_digest,
+      email_verified_at: db.raw('coalesce(email_verified_at, now())'),
+      token_version: db.raw('token_version + 1'),
+      updated_at: db.fn.now(),
+    })
+    .returning('*');
+  return updated;
+}
+
 export async function markEmailVerified(user) {
   await db('users')
     .where({ id: user.id })
@@ -49,17 +68,33 @@ export async function markEmailVerified(user) {
     .update({ email_verified_at: db.fn.now(), updated_at: db.fn.now() });
 }
 
+// For a password reset, which finds the user whichever way the address is
+// capitalized. (The unique index on lower(email) means there's one at most.)
+export function findByEmailIgnoringCase(email) {
+  return db('users')
+    .whereRaw('lower(email) = lower(?)', [types.string(email)])
+    .first();
+}
+
+// has_secure_password's validations of a new password: the error, in its
+// words, or undefined if the password will do.
+export function passwordError(password, password_confirmation) {
+  if (typeof password !== 'string' || password === '') return "Password can't be blank";
+  if ([...password].length > MAX_PASSWORD_LENGTH) {
+    return `Password is too long (maximum is ${MAX_PASSWORD_LENGTH} characters)`;
+  }
+  // validates_confirmation_of :password, allow_blank: true
+  const confirmed =
+    password.trim() === '' || password_confirmation == null || password_confirmation === password;
+  if (!confirmed) return "Password confirmation doesn't match Password";
+}
+
 // User.create, with has_secure_password's validations and
 // `validates :email, uniqueness: { case_sensitive: false }`.
 // Returns undefined when a validation fails.
 export async function create({ email, password, password_confirmation }) {
   email = types.string(email);
-  if (typeof password !== 'string' || password === '') return;
-  if ([...password].length > MAX_PASSWORD_LENGTH) return;
-  // validates_confirmation_of :password, allow_blank: true
-  const confirmed =
-    password.trim() === '' || password_confirmation == null || password_confirmation === password;
-  if (!confirmed) return;
+  if (passwordError(password, password_confirmation)) return;
   if (await emailTaken(email)) return;
 
   const password_digest = await bcrypt.hash(password, config.bcryptCost);

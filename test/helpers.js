@@ -6,7 +6,7 @@ import { encodeToken } from '../src/auth.js';
 import db from '../src/db.js';
 import { outbox } from '../src/mailer.js';
 import * as User from '../src/models/user.js';
-import { authAttempts, verificationEmails } from '../src/rate-limit.js';
+import { authAttempts, passwordResetEmails, verificationEmails } from '../src/rate-limit.js';
 
 // One server per test file, listening on 127.0.0.1 itself. supertest's own
 // servers listen on every address but are sent requests at 127.0.0.1, where
@@ -22,6 +22,7 @@ export const api = request(server);
 export async function reset() {
   await authAttempts.resetAll();
   await verificationEmails.resetAll();
+  await passwordResetEmails.resetAll();
   outbox.length = 0;
   await db.raw('TRUNCATE users, user_identities, items, categories, logs RESTART IDENTITY CASCADE');
 }
