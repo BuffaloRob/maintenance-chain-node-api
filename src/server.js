@@ -15,6 +15,20 @@ if (!config.jwtSecret || config.jwtSecret.length < MIN_SECRET_LENGTH) {
   process.exit(1);
 }
 
+// Signing up sends a verification email, which takes these.
+const mailSettings = {
+  SMTP_URL: config.smtpUrl,
+  MAIL_FROM: config.mailFrom,
+  CLIENT_URL: config.clientUrl,
+};
+const missingMailSettings = Object.keys(mailSettings).filter((name) => !mailSettings[name]);
+if (config.env === 'production' && missingMailSettings.length > 0) {
+  console.error(
+    `Set ${missingMailSettings.join(', ')} to send verification emails (see .env.example).`,
+  );
+  process.exit(1);
+}
+
 const server = app.listen(config.port, (error) => {
   if (error) throw error;
   console.log(`Maintenance Chain API listening on http://localhost:${config.port}/api/v1`);

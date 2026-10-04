@@ -1,4 +1,5 @@
 import { encodeToken } from '../auth.js';
+import { sendVerificationEmail } from '../email-verification.js';
 import * as User from '../models/user.js';
 import { permit } from '../params.js';
 import { serializeUser } from '../serializers.js';
@@ -10,6 +11,8 @@ export async function create(req, res) {
   });
   const user = await User.create(attributes);
   if (!user) return res.status(422).json({ error: 'Sign Up has Failed' });
+  // The account exists either way, and the user can ask for another email.
+  await sendVerificationEmail(user).catch((error) => console.error(error));
   res.status(201).json({ user: await serializeUser(user), jwt: encodeToken(user) });
 }
 

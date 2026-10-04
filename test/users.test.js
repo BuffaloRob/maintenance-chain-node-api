@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { after, beforeEach, describe, test } from 'node:test';
 import jwt from 'jsonwebtoken';
+import { encodeToken } from '../src/auth.js';
 import config from '../src/config.js';
 import db from '../src/db.js';
 import * as Item from '../src/models/item.js';
@@ -19,7 +20,12 @@ describe('signing up', () => {
     });
 
     assert.equal(res.status, 201);
-    assert.deepEqual(res.body.user, { id: 1, email: 'new@example.com', items: [] });
+    assert.deepEqual(res.body.user, {
+      id: 1,
+      email: 'new@example.com',
+      email_verified: false,
+      items: [],
+    });
     const { user_id, iat, exp } = jwt.verify(res.body.jwt, config.jwtSecret);
     assert.equal(user_id, 1);
     assert.equal(exp - iat, 30 * DAY);
@@ -82,6 +88,7 @@ describe('POST /login', () => {
     assert.deepEqual(res.body.user, {
       id: 1,
       email: 'rob@example.com',
+      email_verified: true,
       items: [{ id: 1, name: 'Car' }],
     });
     assert.equal(jwt.verify(res.body.jwt, config.jwtSecret).user_id, 1);
@@ -116,6 +123,23 @@ describe('POST /login', () => {
       .send({ user: { email: 'old@example.com', password: 'U*U' } });
 
     assert.equal(res.status, 200);
+  });
+
+  test('rejects any password for a user without one', async () => {
+    // Like a user who signed up with Google.
+    await db('users').insert({
+      email: 'google@example.com',
+      created_at: db.fn.now(),
+      updated_at: db.fn.now(),
+    });
+
+    for (const password of ['', 'anything']) {
+      const res = await api
+        .post('/api/v1/login')
+        .send({ user: { email: 'google@example.com', password } });
+      assert.equal(res.status, 401);
+      assert.deepEqual(res.body, { message: 'Invalid email or password' });
+    }
   });
 
   test('accepts form-encoded params', async () => {
@@ -154,7 +178,32 @@ describe('authorization', () => {
     const res = await api.get('/api/v1/user').set(auth);
 
     assert.equal(res.status, 200);
-    assert.deepEqual(res.body, { user: { id: 1, email: 'rob@example.com', items: [] } });
+    assert.deepEqual(res.body, {
+      user: { id: 1, email: 'rob@example.com', email_verified: true, items: [] },
+    });
+  });
+
+  test("raising a user's token_version revokes the tokens issued before", async () => {
+    const { user, auth } = await signUp();
+    await db('users').where({ id: user.id }).increment('token_version');
+
+    const revoked = await api.get('/api/v1/user').set(auth);
+    const [current] = await db('users').where({ id: user.id });
+    const fresh = await api
+      .get('/api/v1/user')
+      .set('Authorization', `Bearer ${encodeToken(current)}`);
+
+    assert.equal(revoked.status, 401);
+    assert.equal(fresh.status, 200);
+  });
+
+  test('tokens without a version still work until it goes up', async () => {
+    const { user } = await signUp();
+    const token = jwt.sign({ user_id: user.id }, config.jwtSecret, { expiresIn: '30d' });
+
+    const res = await api.get('/api/v1/user').set('Authorization', `Bearer ${token}`);
+
+    assert.equal(res.status, 200);
   });
 
   test('requests without a valid token get a 401 with no body', async () => {

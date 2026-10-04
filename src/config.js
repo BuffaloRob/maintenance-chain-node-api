@@ -35,6 +35,19 @@ export default {
     ? process.env.CORS_ORIGINS.split(',').map((origin) => origin.trim())
     : defaultCorsOrigins,
   trustProxy: parseTrustProxy(process.env.TRUST_PROXY),
+  // The client's address, which links in emails point to.
+  clientUrl: process.env.CLIENT_URL || (env === 'production' ? undefined : 'http://localhost:3005'),
+  // How emails are sent, e.g. smtps://user:password@smtp.example.com. Without
+  // it, outside production, they're printed to the console instead.
+  smtpUrl: process.env.SMTP_URL,
+  mailFrom:
+    process.env.MAIL_FROM ||
+    (env === 'production' ? undefined : 'Maintenance Chain <no-reply@localhost>'),
+  // The OAuth client ID of the app's Google Cloud project. Without it,
+  // signing in with Google is turned off.
+  googleClientId:
+    process.env.GOOGLE_CLIENT_ID ||
+    (env === 'test' ? 'test.apps.googleusercontent.com' : undefined),
   // Like has_secure_password, which uses bcrypt's minimum cost in tests.
   bcryptCost: env === 'test' ? 4 : 12,
 };

@@ -25,9 +25,11 @@
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "express-rate-limit": "^8.7.0",
+    "jose": "^6.2.12",
     "jsonwebtoken": "^9.0.3",
     "knex": "^3.3.0",
     "morgan": "^1.12.1",
+    "nodemailer": "^10.0.14",
     "pg": "^8.23.0"
   },
   "devDependencies": {

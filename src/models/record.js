@@ -1,9 +1,10 @@
 import db from '../db.js';
 
-// Inserts a row with its timestamps, like ActiveRecord's create.
-export async function insertRecord(table, attributes) {
-  const [record] = await db(table)
-    .insert({ ...attributes, created_at: db.fn.now(), updated_at: db.fn.now() })
+// Inserts a row with its timestamps, like ActiveRecord's create. Pass a
+// transaction to insert it in that.
+export async function insertRecord(table, attributes, trx = db) {
+  const [record] = await trx(table)
+    .insert({ ...attributes, created_at: trx.fn.now(), updated_at: trx.fn.now() })
     .returning('*');
   return record;
 }

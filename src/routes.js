@@ -1,11 +1,12 @@
 import { Router } from 'express';
-import { authorized } from './auth.js';
+import { authorized, verified } from './auth.js';
 import * as auth from './controllers/auth.js';
 import * as categories from './controllers/categories.js';
 import * as items from './controllers/items.js';
 import * as logs from './controllers/logs.js';
 import * as users from './controllers/users.js';
-import { limitAuthAttempts } from './rate-limit.js';
+import * as verification from './controllers/verification.js';
+import { limitAuthAttempts, limitVerificationEmails } from './rate-limit.js';
 
 // The Rails app's config/routes.rb, mounted at /api/v1.
 const router = Router();
@@ -13,12 +14,18 @@ const router = Router();
 router.post('/signup', limitAuthAttempts, users.create);
 router.post('/users', limitAuthAttempts, users.create);
 router.post('/login', limitAuthAttempts, auth.create);
+router.post('/auth/google', limitAuthAttempts, auth.google);
+router.post('/verify_email', verification.verify);
 
 // Everything else needs a token.
 router.use(authorized);
 
 router.get('/user', users.profile);
 router.post('/logout', users.logout);
+router.post('/resend_verification_email', limitVerificationEmails, verification.resend);
+
+// And everything else a verified email address.
+router.use(verified);
 
 router.route('/items').get(items.index).post(items.create);
 router

@@ -66,3 +66,18 @@ test('the server refuses to start with a short JWT_SECRET', () => {
   assert.equal(server.status, 1);
   assert.match(server.stderr, /JWT_SECRET must be at least 32 characters/);
 });
+
+test('in production, the server refuses to start without the settings for sending email', () => {
+  const env = { ...process.env, NODE_ENV: 'production', JWT_SECRET: 'x'.repeat(32), PORT: '0' };
+  for (const name of ['SMTP_URL', 'MAIL_FROM', 'CLIENT_URL']) delete env[name];
+  const server = spawnSync(process.execPath, [join(import.meta.dirname, '../src/server.js')], {
+    env,
+    // Somewhere without a .env file to fill them in.
+    cwd: import.meta.dirname,
+    encoding: 'utf8',
+    timeout: 10_000,
+  });
+
+  assert.equal(server.status, 1);
+  assert.match(server.stderr, /Set SMTP_URL, MAIL_FROM, CLIENT_URL to send verification emails/);
+});

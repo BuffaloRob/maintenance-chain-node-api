@@ -20,10 +20,15 @@ const logAttributes = ({ id, notes, tools, cost, date_performed, date_due, categ
 
 const indexById = (records) => new Map(records.map((record) => [record.id, record]));
 
-// UserSerializer: has_many :items
+// UserSerializer: has_many :items. Plus whether the user's email address is
+// verified, which the Rails app didn't have.
 export async function serializeUser(user) {
   const items = await Item.forUser(user.id);
-  return { ...userAttributes(user), items: items.map(itemAttributes) };
+  return {
+    ...userAttributes(user),
+    email_verified: user.email_verified_at != null,
+    items: items.map(itemAttributes),
+  };
 }
 
 // ItemSerializer: belongs_to :user, has_many :categories, has_many :logs.
