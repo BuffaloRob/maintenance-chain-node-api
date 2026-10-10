@@ -73,6 +73,10 @@ export async function serializeLogs(logs) {
   });
 }
 
+// Receipts are new: the Rails app had none. Their images are left out; GET
+// .../receipts/:id sends one.
+export const serializeReceipt = ({ id, log_id, content_type }) => ({ id, log_id, content_type });
+
 export const serializeItem = async (item, user) => (await serializeItems([item], user))[0];
 export const serializeCategory = async (category) => (await serializeCategories([category]))[0];
 export const serializeLog = async (log) => (await serializeLogs([log]))[0];
