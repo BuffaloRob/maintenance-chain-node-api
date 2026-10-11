@@ -47,6 +47,17 @@ test("CORS lets in the client's origins", async () => {
   assert.equal(res.headers['access-control-expose-headers'], 'Authorization,Content-Type');
 });
 
+test('CORS lets in maintenancecha.in over http and https', async () => {
+  for (const origin of ['http://maintenancecha.in', 'https://maintenancecha.in']) {
+    const res = await api
+      .options('/api/v1/items')
+      .set('Origin', origin)
+      .set('Access-Control-Request-Method', 'GET');
+
+    assert.equal(res.headers['access-control-allow-origin'], origin);
+  }
+});
+
 test('CORS turns other origins away', async () => {
   const res = await api
     .options('/api/v1/items')
