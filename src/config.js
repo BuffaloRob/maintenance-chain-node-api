@@ -6,12 +6,15 @@ if (existsSync('.env')) process.loadEnvFile();
 
 const env = process.env.NODE_ENV || 'development';
 
-// The Rails app's allowed origins (config/initializers/cors.rb).
+// The Rails app's allowed origins (config/initializers/cors.rb), plus the
+// https address of maintenancecha.in. Surge's free plan can't redirect http
+// to https, so both addresses stay in.
 const defaultCorsOrigins = [
   'http://localhost:3005',
   'https://maintenancechain.surge.sh',
   'https://maintenance-chain.surge.sh',
   'http://maintenancecha.in',
+  'https://maintenancecha.in',
 ];
 
 // Express's "trust proxy" setting: how many proxies sit in front of the app,
