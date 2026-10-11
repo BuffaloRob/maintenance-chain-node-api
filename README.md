@@ -108,7 +108,7 @@ When the user with that address hadn't verified it, linking also deletes their p
 To set it up, in the [Google Cloud console](https://console.cloud.google.com/auth/clients):
 
 1. Create a project, and fill in the app's name and support email under Google Auth Platform → Branding.
-2. Under Clients, create an OAuth client of type Web application. Add the client's origins under Authorized JavaScript origins: `https://maintenancechain.surge.sh` (Google requires HTTPS outside localhost), and `http://localhost` plus `http://localhost:3005` to develop. No redirect URIs are needed.
+2. Under Clients, create an OAuth client of type Web application. Add the client's origins under Authorized JavaScript origins: `https://maintenancecha.in` (Google requires HTTPS outside localhost, so the button doesn't work at `http://maintenancecha.in`), and `http://localhost` plus `http://localhost:3005` to develop. No redirect URIs are needed.
 3. Under Audience, publish the app. It only asks for the user's email address and profile, so Google doesn't need to review it.
 4. Set `GOOGLE_CLIENT_ID` here and `VITE_GOOGLE_CLIENT_ID` in the client to the client ID (it isn't secret).
 
