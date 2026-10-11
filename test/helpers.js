@@ -24,7 +24,9 @@ export async function reset() {
   await verificationEmails.resetAll();
   await passwordResetEmails.resetAll();
   outbox.length = 0;
-  await db.raw('TRUNCATE users, user_identities, items, categories, logs RESTART IDENTITY CASCADE');
+  await db.raw(
+    'TRUNCATE users, user_identities, items, categories, logs, receipts RESTART IDENTITY CASCADE',
+  );
 }
 
 // Creates a user, returned with an Authorization header for them. Their
