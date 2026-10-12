@@ -76,6 +76,34 @@ test('each entry is a log with its category', async () => {
   ]);
 });
 
+test("archived items' logs are neither past due nor upcoming", async () => {
+  await categoryWithLogs(car, 'Oil change', -5);
+  await categoryWithLogs(car, 'Tires', 10);
+  const truck = await Item.create(rob.user, { name: 'Truck' });
+  await categoryWithLogs(truck, 'Oil change', -1);
+  await categoryWithLogs(truck, 'Tires', 3);
+  await Item.archive(truck);
+
+  const pastDue = await api.get('/api/v1/past_due').set(rob.auth);
+  const upcoming = await api.get('/api/v1/upcoming').set(rob.auth);
+
+  assert.deepEqual(
+    pastDue.body.map((log) => log.category.item_id),
+    [car.id],
+  );
+  assert.deepEqual(
+    upcoming.body.map((log) => log.category.item_id),
+    [car.id],
+  );
+
+  await Item.unarchive(await Item.find(rob.user.id, truck.id));
+  const restored = await api.get('/api/v1/past_due').set(rob.auth);
+  assert.deepEqual(
+    restored.body.map((log) => log.category.item_id),
+    [car.id, truck.id],
+  );
+});
+
 test('logs without a due date are skipped', async () => {
   const oil = await categoryWithLogs(car, 'Oil change', -5);
   await Log.create(oil, { notes: 'No due date' });

@@ -70,7 +70,8 @@ export const destroy = (log) => db('logs').where({ id: log.id }).del();
 
 // For past_due and upcoming: the latest log (first in default_scope order)
 // of each of the user's categories, ordered by item and then category. Logs
-// without a due date are skipped; the Rails app raised an error on them.
+// without a due date are skipped; the Rails app raised an error on them. So
+// are archived items.
 export function latestPerCategory(userId) {
   const latest = db('logs')
     .distinctOn('logs.category_id')
@@ -78,6 +79,7 @@ export function latestPerCategory(userId) {
     .join('categories', 'categories.id', 'logs.category_id')
     .join('items', 'items.id', 'categories.item_id')
     .where('items.user_id', userId)
+    .whereNull('items.archived_at')
     .whereNotNull('logs.date_due')
     .orderBy([{ column: 'logs.category_id' }, ...ORDER]);
   return db.select('*').from(latest.as('latest')).orderBy(['item_id', 'category_id']);
