@@ -32,7 +32,8 @@ export async function serializeUser(user) {
 }
 
 // ItemSerializer: belongs_to :user, has_many :categories, has_many :logs.
-// The items all belong to `user`.
+// Plus when the item was archived (null if it isn't), which the Rails app
+// didn't have. The items all belong to `user`.
 export async function serializeItems(items, user) {
   const ids = items.map((item) => item.id);
   const [categories, logs] = await Promise.all([Category.forItems(ids), Log.forItems(ids)]);
@@ -40,6 +41,7 @@ export async function serializeItems(items, user) {
   const logsByItem = Map.groupBy(logs, (log) => log.item_id);
   return items.map((item) => ({
     ...itemAttributes(item),
+    archived_at: item.archived_at,
     user: userAttributes(user),
     categories: (categoriesByItem.get(item.id) ?? []).map(categoryAttributes),
     logs: (logsByItem.get(item.id) ?? []).map(logAttributes),

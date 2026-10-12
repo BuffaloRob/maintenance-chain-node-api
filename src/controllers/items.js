@@ -29,6 +29,19 @@ export async function update(req, res) {
   res.json(await serializeItem(await Item.update(item, itemParams(req)), req.currentUser));
 }
 
+// POST /items/:id/archive. The item keeps its categories and logs, but its
+// logs are no longer past due or upcoming.
+export async function archive(req, res) {
+  const item = await findItem(req);
+  res.json(await serializeItem(await Item.archive(item), req.currentUser));
+}
+
+// DELETE /items/:id/archive
+export async function unarchive(req, res) {
+  const item = await findItem(req);
+  res.json(await serializeItem(await Item.unarchive(item), req.currentUser));
+}
+
 export async function destroy(req, res) {
   await Item.destroy(await findItem(req));
   res.status(204).end();

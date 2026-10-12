@@ -42,6 +42,7 @@ router
   .patch(items.update)
   .put(items.update)
   .delete(items.destroy);
+router.route('/items/:id/archive').post(items.archive).delete(items.unarchive);
 
 router.route('/items/:item_id/categories').get(categories.index).post(categories.create);
 router

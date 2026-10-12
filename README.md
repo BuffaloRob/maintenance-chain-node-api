@@ -54,19 +54,20 @@ Signing up, logging in (with a password or Google), asking for a password reset 
 | `POST` | `/logout` | 204. The server keeps no sessions; the client discards its token |
 | `GET`, `POST` | `/items` | Items take `name` |
 | `GET`, `PATCH`, `PUT`, `DELETE` | `/items/:id` | |
+| `POST`, `DELETE` | `/items/:id/archive` | Archives the item, or restores it (see [Archiving items](#archiving-items)). 200 with the item |
 | `GET`, `POST` | `/items/:item_id/categories` | Categories take `name` (and `item_id` on update). Posting a name the item already has returns that category, with a 200 |
 | `GET`, `PATCH`, `PUT`, `DELETE` | `/items/:item_id/categories/:id` | |
 | `GET`, `POST` | `/items/:item_id/categories/:category_id/logs` | Logs take `notes`, `tools`, `cost`, `date_performed` and `date_due` (`YYYY-MM-DD`), and `category_id` on update |
 | `GET`, `PATCH`, `PUT`, `DELETE` | `/items/:item_id/categories/:category_id/logs/:id` | |
 | `GET`, `POST` | `/items/:item_id/categories/:category_id/logs/:log_id/receipts` | The log's photos of receipts (see [Receipts](#receipts)) |
 | `GET`, `DELETE` | `/items/:item_id/categories/:category_id/logs/:log_id/receipts/:id` | `GET` sends the image |
-| `GET` | `/past_due` | The latest log of each category, if it was due today or earlier |
-| `GET` | `/upcoming` | The latest log of each category, if it's due in the next 30 days |
+| `GET` | `/past_due` | The latest log of each category, if it was due today or earlier. Archived items are left out |
+| `GET` | `/upcoming` | The latest log of each category, if it's due in the next 30 days. Archived items are left out |
 
 Request bodies can nest attributes under the resource name (`{ item: { name } }`) or send them bare (`{ name }`), as Rails' parameter wrapping allowed. Records come back the way the Rails serializers rendered them:
 
 - user: `id`, `email`, `email_verified`, `items` (each `id`, `name`)
-- item: `id`, `name`, `user`, `categories`, `logs`
+- item: `id`, `name`, `archived_at`, `user`, `categories`, `logs`
 - category: `id`, `name`, `item_id`, `logs`, `item`
 - log: `id`, `notes`, `tools`, `cost`, `date_performed`, `date_due`, `category_id`, `category`
 - receipt: `id`, `log_id`, `content_type`
@@ -80,6 +81,12 @@ Each log can have up to 10 photos of receipts. To upload one, send the image as 
 `GET .../receipts` lists the log's receipts, oldest first, and `GET .../receipts/:id` sends one's image, with its type as the `Content-Type`. Browsers aren't allowed to cache it, so it doesn't stay on a shared computer after the user logs out. Like the logs' endpoints, these find the category by `:category_id` and ignore `:item_id`; the log has to be in that category.
 
 The images are stored in the database, in the `receipts` table, so there's nothing else to set up. The client shrinks photos before uploading them, to a JPEG of a few hundred KB. Deleting a log deletes its receipts, as does deleting its category or item.
+
+## Archiving items
+
+`POST /items/:id/archive` archives an item, and `DELETE /items/:id/archive` restores it. Both return the item. Its `archived_at` is when it was archived, as an ISO 8601 time in UTC, or `null` if it isn't archived. Archiving an item that's already archived keeps the time it was first archived. Updating an item doesn't change `archived_at`, even if the body includes it.
+
+An archived item keeps its categories and logs, which can still be changed, and `GET /items` still lists it. Its logs are left out of `/past_due` and `/upcoming`. The client shows archived items in an archive of their own.
 
 ## Verifying email addresses
 
@@ -114,7 +121,7 @@ To set it up, in the [Google Cloud console](https://console.cloud.google.com/aut
 
 ## Using the Rails app's database
 
-Set `DATABASE_URL` to it and run `npm run db:migrate`. The first migration sees the existing tables and leaves them alone (and `npm run db:rollback` won't drop them). The second adds a unique index on lowercased emails, so it fails if two users there share an email, ignoring case, until one of them is changed. The third adds the columns and table for verifying emails and signing in with Google, the fourth marks every user already there as verified, so they can carry on without verifying their address, and the fifth adds the table for receipts.
+Set `DATABASE_URL` to it and run `npm run db:migrate`. The first migration sees the existing tables and leaves them alone (and `npm run db:rollback` won't drop them). The second adds a unique index on lowercased emails, so it fails if two users there share an email, ignoring case, until one of them is changed. The third adds the columns and table for verifying emails and signing in with Google, the fourth marks every user already there as verified, so they can carry on without verifying their address, the fifth adds the table for receipts, and the sixth adds the column for archiving items.
 
 Existing passwords keep working, since both apps use bcrypt, but everyone has to log in again. Don't set `JWT_SECRET` to the Rails app's secret to keep its tokens working: that secret is in the Rails app's public repository, so anyone could use it to sign a token for any user. (The Rails app's tokens never expired, so they're turned away regardless.)
 
